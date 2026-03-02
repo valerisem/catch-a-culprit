@@ -11,13 +11,29 @@ import {
 } from "recharts";
 import { SuspectData, MonthlyDataPoint } from "../data/mockData";
 
-function getEmbedUrl(url: string): { type: "youtube" | "video"; src: string } {
+function getDriveFileId(url: string): string | null {
+  // /file/d/{ID}/view, /file/d/{ID}/edit, etc.
+  const fileD = url.match(/drive\.google\.com\/file\/d\/([^/?]+)/);
+  if (fileD) return fileD[1];
+  // open?id={ID}
+  const openId = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/);
+  if (openId) return openId[1];
+  return null;
+}
+
+function getEmbedUrl(url: string): { type: "iframe" | "drive" | "video"; src: string } {
+  // YouTube watch / short links
   const ytWatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
   if (ytWatch) {
-    return { type: "youtube", src: `https://www.youtube.com/embed/${ytWatch[1]}` };
+    return { type: "iframe", src: `https://www.youtube.com/embed/${ytWatch[1]}` };
   }
   if (url.includes("youtube.com/embed/")) {
-    return { type: "youtube", src: url };
+    return { type: "iframe", src: url };
+  }
+  // Google Drive links – use dedicated "drive" type
+  const driveId = getDriveFileId(url);
+  if (driveId) {
+    return { type: "drive", src: driveId };
   }
   return { type: "video", src: url };
 }
@@ -233,10 +249,27 @@ export function SuspectCard({
               <h3 className="text-[10px] sm:text-xs uppercase tracking-wider text-white mb-1">
                 🎥 Interrogation Footage
               </h3>
-              <div className="aspect-video bg-black border-2 border-gray-700">
+              <div className="aspect-video bg-black border-2 border-gray-700 overflow-hidden">
                 {(() => {
                   const embed = getEmbedUrl(suspect.videoUrl);
-                  if (embed.type === "youtube") {
+                  if (embed.type === "drive") {
+                    // Google Drive: use /preview in an iframe with permissive sandbox
+                    return (
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        src={`https://drive.google.com/file/d/${embed.src}/preview`}
+                        title={`${suspect.name} Interrogation`}
+                        frameBorder="0"
+                        allow="autoplay; encrypted-media"
+                        allowFullScreen
+                        sandbox="allow-scripts allow-same-origin allow-popups"
+                        referrerPolicy="no-referrer"
+                        style={{ border: 0 }}
+                      />
+                    );
+                  }
+                  if (embed.type === "iframe") {
                     return (
                       <iframe
                         width="100%"
