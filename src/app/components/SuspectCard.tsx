@@ -11,13 +11,24 @@ import {
 } from "recharts";
 import { SuspectData, MonthlyDataPoint } from "../data/mockData";
 
-function getEmbedUrl(url: string): { type: "youtube" | "video"; src: string } {
+function getEmbedUrl(url: string): { type: "iframe" | "video"; src: string } {
+  // YouTube watch / short links
   const ytWatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
   if (ytWatch) {
-    return { type: "youtube", src: `https://www.youtube.com/embed/${ytWatch[1]}` };
+    return { type: "iframe", src: `https://www.youtube.com/embed/${ytWatch[1]}` };
   }
   if (url.includes("youtube.com/embed/")) {
-    return { type: "youtube", src: url };
+    return { type: "iframe", src: url };
+  }
+  // Google Drive links: /file/d/{ID}/view, /file/d/{ID}/edit, etc.
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (driveMatch) {
+    return { type: "iframe", src: `https://drive.google.com/file/d/${driveMatch[1]}/preview` };
+  }
+  // Google Drive open?id= format
+  const driveOpenMatch = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/);
+  if (driveOpenMatch) {
+    return { type: "iframe", src: `https://drive.google.com/file/d/${driveOpenMatch[1]}/preview` };
   }
   return { type: "video", src: url };
 }
@@ -236,7 +247,7 @@ export function SuspectCard({
               <div className="aspect-video bg-black border-2 border-gray-700">
                 {(() => {
                   const embed = getEmbedUrl(suspect.videoUrl);
-                  if (embed.type === "youtube") {
+                  if (embed.type === "iframe") {
                     return (
                       <iframe
                         width="100%"
